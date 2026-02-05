@@ -23,7 +23,7 @@ function generarCotizacionPDF(payload) {
     template.datos = cotizacionData; // Pasamos los datos al objeto 'datos' que espera el HTML
 
     // 4. Evaluar y convertir a PDF
-    const blob = template.evaluate().getBlob();
+    const blob = template.evaluate().getAs(MimeType.PDF);
     const pdfName = `Cotización_${cotizacionData.idCotizacion}_${payload.cliente.cliente}.pdf`;
     blob.setName(pdfName);
 
