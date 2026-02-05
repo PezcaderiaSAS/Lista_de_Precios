@@ -1,0 +1,228 @@
+<script>
+    const { createApp, reactive, computed, onMounted } = Vue;
+
+    const app = createApp({
+        setup() {
+            const state = reactive({
+                vistaActual: 'cotizador',
+                productos: [],
+                clientes: [],
+                carrito: [],
+                cargando: false,
+                cargandoPDF: false,
+                mensaje: { tipo: '', texto: '' },
+
+                // MODALS
+                mostrarModalClientes: false,
+                mostrarModalCarritoMobile: false,
+                mostrarModalFormCliente: false,
+                mostrarModalFormProducto: false,
+
+                busquedaCliente: '',
+                formCliente: { id_cliente_bodega: '', cliente: '', razon_social: '', identificacion: '', tipo_de_id: 'Cédula de ciudadanía', direccion: '', telefono: '', ciudad: 'Bucaramanga' },
+                formProducto: { nombre: '', categoria: 'Gancho', precio_pos: 0, precio_rest: 0, precio_mayor: 0 },
+                configCotizacion: { tipoPrecio: 'restaurante', cliente: null },
+                filtros: { busqueda: '', categoria: '' }
+            });
+
+            // --- UTILIDADES LOCALES ---
+            const normalizarTexto = (txt) => (txt || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+            // --- COMPUTADAS ---
+            const productosFiltrados = computed(() => {
+                let res = state.productos;
+                const term = normalizarTexto(state.filtros.busqueda);
+                if (term) res = res.filter(p => normalizarTexto(p.nombre).includes(term) || String(p.id).includes(term));
+                if (state.filtros.categoria) res = res.filter(p => p.categoria === state.filtros.categoria);
+                return res;
+            });
+
+            const clientesFiltrados = computed(() => {
+                // Se elimina el límite de 20 para mostrar TODOS los clientes si no hay búsqueda
+                // Para evitar problemas de rendimiento con listas muy grandes, idealmente se usaría paginación,
+                // pero por requerimiento de "cargar todos", devolvemos la lista completa.
+                if (!state.busquedaCliente) return state.clientes;
+
+                const term = normalizarTexto(state.busquedaCliente);
+                return state.clientes.filter(c =>
+                    normalizarTexto(c.cliente).includes(term) ||
+                    normalizarTexto(c.razon_social).includes(term) ||
+                    normalizarTexto(c.identificacion).includes(term)
+                );
+            });
+
+            const categoriasUnicas = computed(() => [...new Set(state.productos.map(p => p.categoria))].sort());
+            const totalCarrito = computed(() => state.carrito.reduce((sum, item) => sum + (item.precioUnitario * item.cantidad), 0));
+            const cantidadTotalItems = computed(() => state.carrito.reduce((sum, item) => sum + item.cantidad, 0));
+
+            // --- CARGA DE DATOS ---
+            // Usamos promesas para cargar en paralelo y gestionar el spinner correctamente
+            const runGoogleScript = (funcName, args = []) => {
+                return new Promise((resolve, reject) => {
+                    google.script.run
+                        .withSuccessHandler(res => resolve(res))
+                        .withFailureHandler(err => reject(err))
+                    [funcName](...args);
+                });
+            };
+
+            const recargarClientes = () => {
+                return runGoogleScript('getClientesLista').then(resCli => {
+                    if (resCli && resCli.status === 'success') {
+                        state.clientes = resCli.data;
+                    } else {
+                        mostrarNotificacion('error', 'Error cargando clientes');
+                    }
+                });
+            };
+
+            const cargarDatos = () => {
+                state.cargando = true;
+                console.log("Iniciando carga de datos (Paralela)...");
+
+                Promise.all([
+                    runGoogleScript('getProductosSeguros').then(resProd => {
+                        if (resProd && resProd.status === 'success') {
+                            state.productos = resProd.data;
+                        } else {
+                            mostrarNotificacion('error', 'Error Productos: ' + (resProd ? resProd.message : 'Sin datos'));
+                        }
+                    }),
+                    recargarClientes()
+                ]).catch(error => {
+                    console.error("Error General de Carga:", error);
+                    mostrarNotificacion('error', 'Error al cargar datos iniciales');
+                }).finally(() => {
+                    state.cargando = false;
+                });
+            };
+
+            const obtenerPrecio = (p) => p.precios[state.configCotizacion.tipoPrecio] || 0;
+
+            const agregarAlCarrito = (p) => {
+                const tipoUsar = p.tipoPrecioForzado || state.configCotizacion.tipoPrecio; // Detectar tarifa forzada
+                const precio = p.precios[tipoUsar] || 0;
+
+                // Buscamos si ya existe ese producto CON ESA MISMA TARIFA
+                const ex = state.carrito.find(i => i.id === p.id && i.tipoPrecio === tipoUsar);
+
+                if (ex) {
+                    ex.cantidad++;
+                } else {
+                    state.carrito.push({
+                        id: p.id,
+                        sku: p.id,
+                        nombre: p.nombre,
+                        unidad: p.unidad || 'Und',
+                        precioUnitario: precio,
+                        cantidad: 1,
+                        tipoPrecio: tipoUsar // Guardamos la tarifa usada
+                    });
+                }
+                mostrarNotificacion('exito', 'Agregado');
+            };
+
+            // --- NUEVA FUNCIÓN: Estilos según tarifa ---
+            const obtenerBadgePrecio = (tipo) => {
+                const config = {
+                    'pos': { label: 'P. Venta', clase: 'bg-blue-100 text-blue-700 border-blue-200', icon: 'bi-shop' },
+                    'restaurante': { label: 'Restaurante', clase: 'bg-orange-100 text-orange-700 border-orange-200', icon: 'bi-fire' },
+                    'mayorista': { label: 'Mayorista', clase: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: 'bi-box-seam' }
+                };
+                return config[tipo] || config['pos'];
+            };
+
+            const cambiarCantidad = (i, d) => {
+                const nueva = state.carrito[i].cantidad + d;
+                if (nueva > 0) state.carrito[i].cantidad = nueva;
+                else if (confirm('¿Eliminar del carrito?')) state.carrito.splice(i, 1);
+            };
+
+            const eliminarDelCarrito = (i) => state.carrito.splice(i, 1);
+            const vaciarCarrito = () => { if (confirm('¿Vaciar carrito?')) state.carrito = []; };
+
+            const seleccionarCliente = (c) => {
+                state.configCotizacion.cliente = c;
+                state.mostrarModalClientes = false;
+                mostrarNotificacion('exito', 'Cliente Asignado');
+            };
+
+            const generarPDF = () => {
+                if (!state.configCotizacion.cliente) { alert('Falta Cliente'); state.mostrarModalClientes = true; return; }
+                if (state.carrito.length === 0) { alert('Carrito vacío'); return; }
+
+                state.cargandoPDF = true;
+                const payload = {
+                    cliente: JSON.parse(JSON.stringify(state.configCotizacion.cliente)),
+                    carrito: JSON.parse(JSON.stringify(state.carrito)),
+                    total: totalCarrito.value,
+                    tipoPrecio: state.configCotizacion.tipoPrecio
+                };
+
+                google.script.run.withSuccessHandler(res => {
+                    state.cargandoPDF = false;
+                    if (res.status === 'success') {
+                        window.open(res.data.url, '_blank');
+                        if (confirm("¿Limpiar pedido?")) { state.carrito = []; state.configCotizacion.cliente = null; state.mostrarModalCarritoMobile = false; }
+                    } else alert(res.message);
+                }).generarCotizacionPDF(payload);
+            };
+
+            // CRUD Simples
+            const abrirFormularioCliente = (c) => { state.formCliente = c ? JSON.parse(JSON.stringify(c)) : { cliente: '', identificacion: '', ciudad: 'Bucaramanga' }; state.mostrarModalFormCliente = true; };
+
+            const guardarCliente = () => {
+                state.cargando = true;
+                runGoogleScript('guardarClienteBackend', [JSON.parse(JSON.stringify(state.formCliente))])
+                    .then(r => {
+                        if (r.status === 'success') {
+                            // Recargar solo clientes y luego seleccionar
+                            recargarClientes().then(() => {
+                                state.mostrarModalFormCliente = false;
+
+                                // Lógica Auto-selección
+                                if (r.data.id) {
+                                    // Buscamos coincidencia laxa por si es numero/string
+                                    const nuevoCliente = state.clientes.find(c => String(c.id_cliente_bodega) === String(r.data.id));
+                                    if (nuevoCliente) {
+                                        seleccionarCliente(nuevoCliente);
+                                        cambiarVista('cotizador');
+                                        mostrarNotificacion('exito', 'Cliente guardado y seleccionado');
+                                    } else {
+                                        mostrarNotificacion('exito', 'Cliente guardado');
+                                    }
+                                }
+                                state.cargando = false;
+                            });
+                        } else {
+                            mostrarNotificacion('error', r.message);
+                            state.cargando = false;
+                        }
+                    })
+                    .catch(e => {
+                        console.error(e);
+                        mostrarNotificacion('error', 'Error al guardar');
+                        state.cargando = false;
+                    });
+            };
+
+            const guardarProducto = () => {
+                state.cargando = true;
+                google.script.run.withSuccessHandler(r => { state.cargando = false; if (r.status == 'success') { state.mostrarModalFormProducto = false; cargarDatos(); } }).guardarProductoBackend(JSON.parse(JSON.stringify(state.formProducto)));
+            };
+
+            const cambiarVista = (v) => state.vistaActual = v;
+            const formatoMoneda = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+            const mostrarNotificacion = (t, m) => { state.mensaje = { tipo: t, texto: m }; setTimeout(() => state.mensaje = { tipo: '', texto: '' }, 3000); };
+
+            onMounted(cargarDatos);
+
+            return {
+                ...Vue.toRefs(state), productosFiltrados, clientesFiltrados, categoriasUnicas, totalCarrito, cantidadTotalItems,
+                obtenerPrecio, agregarAlCarrito, cambiarCantidad, eliminarDelCarrito, vaciarCarrito, seleccionarCliente,
+                generarPDF, cambiarVista, formatoMoneda, abrirFormularioCliente, guardarCliente, guardarProducto,
+                obtenerBadgePrecio // <--- IMPORTANTE: Exportamos la nueva función
+            };
+        }
+    }).mount('#app');
+</script>

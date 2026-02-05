@@ -1,0 +1,72 @@
+ID_Producto,PRODUCTO,Precios de Compra,% Buffer/Merma,CostoReal,Categoria,Punto de venta,Restaurantes,Mayoristas
+1,Aleta De Calamar,$9.500,"10,00%",$10.450,Gancho,$16.100,$13.900,$13.100
+2,Aleta De Calamar X 500 Gr,$4.750,"10,00%",$5.225,Gancho,$8.000,$7.000,$6.500
+3,Almeja En Concha,$4.500,"0,00%",$4.500,Gancho,$6.900,$6.000,$5.600
+4,Almeja En Concha X 500 Gr,$2.250,"0,00%",$2.250,Gancho,$3.500,$3.000,$2.800
+5,Almeja Pelada,$16.000,"10,00%",$17.600,Estrella,$29.300,$27.100,$25.100
+6,Almeja Pelada X 500 Gr,$8.000,"10,00%",$8.800,Estrella,$14.700,$13.500,$12.600
+7,Anillos De Calamar,$23.500,"5,00%",$24.675,Gancho,$38.000,$32.900,$30.800
+8,Anillos De Calamar X 500 Gr,$11.750,"7,00%",$12.573,Gancho,$19.300,$16.800,$15.700
+9,Arroz para Sushi,$10.500,"10,00%",$11.550,Gancho,$17.800,$15.400,$14.400
+10,Atun en lata,$6.450,"10,00%",$7.095,Gancho,$10.900,$9.500,$8.900
+11,Atun Rojo,$43.500,"0,00%",$43.500,Estrella,$72.500,$66.900,$62.100
+12,Bagre Criollo Rodaja,$27.800,"10,00%",$30.580,Estrella,$51.000,$47.000,$43.700
+13,Bagre Entero,$26.000,0,$26.000,Estrella,$43.300,$40.000,$37.100
+14,Bagre Importado,$4.600,"10,00%",$5.060,Gancho,$7.800,$6.700,$6.300
+15,Bagre Pechuga,$27.800,"10,00%",$30.580,Estrella,$51.000,$47.000,$43.700
+16,Bagre Seco,$38.000,"10,00%",$41.800,Estrella,$69.700,$64.300,$59.700
+17,Bassa Entero,$7.350,"10,00%",$8.085,Gancho,$12.400,$10.800,$10.100
+18,Bassa Picada,$8.000,"10,00%",$8.800,Liquidación,$10.400,$10.400,$10.400
+19,Cabeza De Bagre,$10.000,"10,00%",$11.000,Liquidación,$12.900,$12.900,$12.900
+20,Cabeza De Bagre X 500 Gr,$5.000,"10,00%",$5.500,Liquidación,$6.500,$6.500,$6.500
+21,Calamar Blanco,$12.000,"12,00%",$13.440,Gancho,$20.700,$17.900,$16.800
+22,Calamar Blanco X 500 Gr,$6.000,"12,00%",$6.720,Gancho,$10.300,$9.000,$8.400
+23,Caldo De Pescado Caja,$6.116,"0,00%",$6.116,Gancho,$9.400,$8.200,$7.600
+24,Camaron Cienaguero,$50.000,"10,00%",$55.000,Gancho,$84.600,$73.300,$68.800
+25,Caracol Copey,$28.000,"10,00%",$30.800,Estrella,$51.300,$47.400,$44.000
+26,Caracol Copey X 500 Gr,$14.000,"10,00%",$15.400,Estrella,$25.700,$23.700,$22.000
+27,Cienaguero X 250 Gr,$12.500,"10,00%",$13.750,Gancho,$21.200,$18.300,$17.200
+28,Cienaguero X 500 Gr,$25.000,"10,00%",$27.500,Gancho,$42.300,$36.700,$34.400
+29,Crema De Maricos Maggi,$3.500,"0,00%",$3.500,Gancho,$5.400,$4.700,$4.400
+30,Crudo 36-40,$28.000,"0,00%",$28.000,Gancho,$43.100,$37.300,$35.000
+31,Crudo 41-50,$24.642,"0,00%",$24.642,Gancho,$37.900,$32.900,$30.800
+32,Crudo 41-50 X 500 Gr,$12.321,"0,00%",$12.321,Estrella,$20.500,$19.000,$17.600
+33,Crudo 51-60,$26.500,"10,00%",$29.150,Gancho,$44.800,$38.900,$36.400
+34,Filete De Bassa X 2 Pqt,$9.500,"0,00%",$9.500,Estrella,$15.800,$14.600,$13.600
+35,Filete De Bassa X 3 Pqt,$9.500,0,$9.500,Estrella,$15.800,$14.600,13600
+36,Filete De Bassa X 4 Pqt,$9.500,"0,00%",$9.500,Estrella,$15.800,$14.600,$13.600
+37,Filete De Bassa X 5 Pqt,$9.500,"0,00%",$9.500,Estrella,$15.800,$14.600,$13.600
+38,Filete de Salmon ch,$46.000,"0,00%",$46.000,Nucleo,$70.800,$65.700,$61.300
+39,Filete De Tilapia,$11.500,"0,00%",$11.500,Nucleo,$17.700,$16.400,$15.300
+40,Jaiba,$30.000,"10,00%",$33.000,Estrella,$55.000,$50.800,$47.100
+41,Jaiba X 500 Gr,$15.000,"10,00%",$16.500,Estrella,$27.500,$25.400,$23.600
+42,Langostino Crudo 15 Taylon x 500,$26.750,"10,00%",$29.425,Estrella,$49.000,$45.300,$42.000
+43,Langostino Crudo Shellon 15 x 500 Gr,$26.750,"10,00%",$29.425,Estrella,$49.000,$45.300,$42.000
+44,Leche De Coco Bolsa,$1.700,"0,00%",$1.700,Gancho,$2.600,$2.300,$2.100
+45,Lomitos De Mojarra,$4.700,"0,00%",$4.700,Gancho,$7.200,$6.300,$5.900
+46,Mejillones Negros X 500 Gr,$6.500,"0,00%",$6.500,Nucleo,$10.000,$9.300,$8.700
+47,Mixtura Especial Premium,$17.647,"15,00%",$20.294,Estrella,$33.800,$31.200,$29.000
+48,Mixtura X 1000 Gr,$9.686,"15,00%",$11.139,Estrella,$18.600,$17.100,$15.900
+49,Mixtura X 1500 Gr,$17.872,"15,00%",$20.553,Estrella,$34.300,$31.600,$29.400
+50,Mixtura x 500 Gr,$5.586,"10,00%",$6.145,Estrella,$10.200,$9.500,$8.800
+51,Mojarra Roja,$13.584,"0,00%",$13.584,Estrella,$22.600,$20.900,$19.400
+52,Palmito De Mar Pqt,$5.117,"0,00%",$5.117,Gancho,$7.900,$6.800,$6.400
+53,Pargo Rojo Entero,$48.000,"10,00%",$52.800,Estrella,$88.000,$81.200,$75.400
+54,Precocido 41-50,$28.000,"0,00%",$28.000,Nucleo,$43.100,$40.000,$37.300
+55,Precocido 41-50 X 500 Gr,$14.000,"0,00%",$14.000,Nucleo,$21.500,$20.000,$18.700
+56,Precocido 91-110 seviche x500,$11.750,"0,00%",$11.750,Estrella,$19.600,$18.100,$16.800
+57,Precocido 91-110 seviche x250,$5.875,"0,00%",$5.875,Estrella,$9.800,$9.000,$8.400
+58,PRECOCIDO BROKEN,$25.500,"10,00%",$28.050,Gancho,$43.200,$37.400,$35.100
+59,Pulpo Tentaculo,$12.000,"10,00%",$13.200,Gancho,$20.300,$17.600,$16.500
+60,Pulpo Tentaculo X 500 Gr,$6.000,"10,00%",$6.600,Gancho,$10.200,$8.800,$8.300
+61,Recortes De Bassa,$2.000,"10,00%",$2.200,Liquidación,$2.600,$2.600,$2.600
+62,Recortes De Bassa x 500 Gr,$1.000,"10,00%",$1.100,Liquidación,$1.300,$1.300,$1.300
+63,Recortes De Salmon x 500 Gr,$15.450,"10,00%",$16.995,Liquidación,$20.000,$20.000,$20.000
+64,Robalo Nacional Filete,$43.500,,$43.500,Estrella,$72.500,$66.900,$62.100
+65,Robalo Nacional Porcionado,$46.000,"10,00%",$50.600,Estrella,$84.300,$77.800,$72.300
+66,Salmon Porcionado Kilo,$46.000,"10,00%",$50.600,Estrella,$84.300,$77.800,$72.300
+67,salmon porcionado x 200gr,$9.200,"10,00%",$10.120,Estrella,$16.900,$15.600,$14.500
+68,salmon porcionado x 250 gr,$11.500,"10,00%",$12.650,Estrella,$21.100,$19.500,$18.100
+69,salmon porcionado x 300 gr,$13.800,"10,00%",$15.180,Estrella,$25.300,$23.400,$21.700
+70,Trucha Mariposa,$19.000,,$19.000,Gancho,$29.200,$25.300,$23.800
+71,Mojarra Roja pequeña,$16.150,"0,00%",$16.150,Liquidación,$19.000,$19.000,$19.000

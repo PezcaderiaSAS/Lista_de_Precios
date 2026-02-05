@@ -1,0 +1,25 @@
+# Apps Script / Clasp
+.clasp.json
+.google/
+creds.json
+
+# Python / Envs
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+.venv/
+env/
+
+# OS
+.DS_Store
+Thumbs.db
+cookies.txt
+cookies.json
+.gemini/
+.antigravity/
+
+# Project specific
+notebooklm-mcp-cli/
+*.pdf

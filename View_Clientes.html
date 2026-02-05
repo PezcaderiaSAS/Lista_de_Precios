@@ -1,0 +1,22 @@
+<div class="bg-white p-8 rounded-lg shadow max-w-4xl mx-auto mt-4">
+    <h2 class="text-2xl font-bold mb-4 text-slate-700">Gestión de Clientes</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left text-slate-500">
+            <thead class="text-xs text-slate-700 uppercase bg-slate-50">
+                <tr>
+                    <th class="px-6 py-3">Nombre</th>
+                    <th class="px-6 py-3">Dirección</th>
+                    <th class="px-6 py-3">Teléfono</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="cliente in clientes" :key="cliente.id_cliente_bodega"
+                    class="bg-white border-b hover:bg-slate-50">
+                    <td class="px-6 py-4 font-medium text-slate-900">{{ cliente.cliente }}</td>
+                    <td class="px-6 py-4">{{ cliente.direccion }}</td>
+                    <td class="px-6 py-4">{{ cliente.telefono }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
