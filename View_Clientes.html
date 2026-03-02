@@ -1,22 +1,158 @@
-<div class="bg-white p-8 rounded-lg shadow max-w-4xl mx-auto mt-4">
-    <h2 class="text-2xl font-bold mb-4 text-slate-700">Gestión de Clientes</h2>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm text-left text-slate-500">
-            <thead class="text-xs text-slate-700 uppercase bg-slate-50">
-                <tr>
-                    <th class="px-6 py-3">Nombre</th>
-                    <th class="px-6 py-3">Dirección</th>
-                    <th class="px-6 py-3">Teléfono</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="cliente in clientes" :key="cliente.id_cliente_bodega"
-                    class="bg-white border-b hover:bg-slate-50">
-                    <td class="px-6 py-4 font-medium text-slate-900">{{ cliente.cliente }}</td>
-                    <td class="px-6 py-4">{{ cliente.direccion }}</td>
-                    <td class="px-6 py-4">{{ cliente.telefono }}</td>
-                </tr>
-            </tbody>
-        </table>
+<div class="flex flex-col h-full bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
+
+  <!-- Header Desktop/Mobile -->
+  <div
+    class="bg-white dark:bg-slate-950 p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 shadow-sm flex justify-between items-center transition-colors duration-300 relative z-10 shrink-0">
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+        <i class="bi bi-people-fill text-sky-600 dark:text-sky-400"></i> Directorio de Clientes
+      </h2>
+      <p
+        class="text-[10px] md:text-sm text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold tracking-wider md:normal-case md:font-normal md:tracking-normal">
+        Administra tu cartera de clientes</p>
     </div>
+    <button @click="abrirFormularioCliente()"
+      class="bg-emerald-600 dark:bg-emerald-700 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-emerald-700 dark:hover:bg-emerald-600 shadow font-bold flex items-center gap-2 transition-transform active:scale-95">
+      <i class="bi bi-person-plus-fill text-lg"></i> <span class="hidden md:inline">Nuevo Cliente</span>
+    </button>
+  </div>
+
+  <div class="flex-grow p-2 md:p-6 overflow-hidden flex flex-col">
+    <!-- Buscador -->
+    <div class="mb-4 shrink-0 px-2 md:px-0">
+      <input type="text" v-model="busquedaCliente" placeholder="🔎 Buscar cliente..."
+        class="w-full md:w-96 pl-4 pr-4 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500">
+    </div>
+
+    <!-- TABLA ESCRITORIO -->
+    <div v-if="isDesktop"
+      class="bg-white dark:bg-slate-900/80 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 flex-grow overflow-auto relative scrollbar-hide backdrop-blur-md">
+      <table class="w-full text-left border-collapse whitespace-nowrap">
+        <thead
+          class="bg-slate-50/90 dark:bg-slate-950/90 text-slate-600 dark:text-slate-300 text-xs uppercase sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+          <tr>
+            <th class="p-4 font-bold border-b dark:border-slate-800">Cliente</th>
+            <th class="p-4 font-bold border-b dark:border-slate-800">Identificación</th>
+            <th class="p-4 font-bold border-b dark:border-slate-800">Ciudad</th>
+            <th
+              class="p-4 font-bold border-b dark:border-slate-800 text-center sticky right-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.5)]">
+              Acciones</th>
+          </tr>
+        </thead>
+        <tbody class="text-sm divide-y divide-slate-100 dark:divide-slate-800">
+          <tr v-for="cliente in clientesFiltrados" :key="cliente.id_cliente_bodega"
+            class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 group transition-colors">
+            <td class="p-4 font-bold text-slate-800 dark:text-slate-200">{{ cliente.cliente }}</td>
+            <td class="p-4 text-slate-500 dark:text-slate-400">{{ cliente.identificacion }}</td>
+            <td class="p-4 text-slate-500 dark:text-slate-400">{{ cliente.ciudad }}</td>
+            <td
+              class="p-4 text-center flex justify-center gap-2 sticky right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.5)] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/90 transition-colors">
+              <button @click="abrirFormularioCliente(cliente)"
+                class="text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-900/30 p-2 rounded transition-colors"
+                title="Editar">
+                <i class="bi bi-pencil-square text-lg"></i>
+              </button>
+              <button @click="seleccionarCliente(cliente); cambiarVista('cotizador')"
+                class="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2 rounded transition-colors"
+                title="Cotizar">
+                <i class="bi bi-cart-plus text-lg"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TARJETAS MÓVIL -->
+    <div v-if="isMobile" class="overflow-y-auto flex-grow space-y-3 pb-4 px-1 scrollbar-hide">
+      <div v-for="cliente in clientesFiltrados" :key="'mob'+cliente.id_cliente_bodega"
+        class="bg-white/80 dark:bg-slate-900/80 p-4 rounded-xl shadow-md border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md transition-colors flex flex-col gap-2">
+        <div class="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">{{ cliente.cliente }}</div>
+
+        <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center justify-between">
+          <span class="flex items-center gap-1"><i class="bi bi-card-text relative top-[1px]"></i> {{
+            cliente.identificacion }}</span>
+          <span class="flex items-center gap-1"><i class="bi bi-geo-alt relative top-[1px]"></i> {{ cliente.ciudad ||
+            'No disp.' }}</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-2">
+          <button @click="abrirFormularioCliente(cliente)"
+            class="w-full bg-slate-100 dark:bg-slate-800 text-sky-600 dark:text-sky-400 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 flex justify-center items-center gap-2 text-sm border border-slate-200 dark:border-slate-700">
+            <i class="bi bi-pencil-square"></i> Editar
+          </button>
+          <button @click="seleccionarCliente(cliente); cambiarVista('cotizador')"
+            class="w-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 py-2 rounded-lg font-bold shadow-sm transition-transform active:scale-95 flex justify-center items-center gap-2 text-sm border border-emerald-200 dark:border-emerald-800/50">
+            <i class="bi bi-cart-plus"></i> Cotizar
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div v-if="mostrarModalFormCliente"
+    class="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[50] flex items-center justify-center p-4 transition-colors">
+    <div
+      class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-slate-700/50 w-full max-w-lg overflow-hidden animate-[fadeIn_0.2s] flex flex-col max-h-[90vh]">
+      <div
+        class="p-4 md:p-5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg flex items-center gap-2">
+          <i class="bi bi-person-lines-fill text-sky-600 dark:text-sky-400"></i>
+          {{ formCliente.id_cliente_bodega ? 'Editar Cliente' : 'Nuevo Cliente' }}
+        </h3>
+        <button @click="mostrarModalFormCliente = false"
+          class="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-slate-800">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-5 md:p-6 grid grid-cols-2 gap-4 overflow-y-auto">
+        <div class="col-span-2">
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Nombre Completo *</label>
+          <input type="text" v-model="formCliente.cliente"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Razón Social</label>
+          <input type="text" v-model="formCliente.razon_social"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Identificación *</label>
+          <input type="text" v-model="formCliente.identificacion"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Teléfono</label>
+          <input type="text" v-model="formCliente.telefono"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div class="col-span-2">
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Dirección</label>
+          <input type="text" v-model="formCliente.direccion"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">Ciudad</label>
+          <input type="text" v-model="formCliente.ciudad"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+      </div>
+
+      <div
+        class="p-4 md:p-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 shrink-0 flex gap-3 justify-end">
+        <button @click="mostrarModalFormCliente = false"
+          class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-bold px-4 py-2 transition-colors">
+          Cancelar
+        </button>
+        <button @click="guardarCliente" :disabled="cargando"
+          class="bg-sky-600 dark:bg-sky-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-sky-700 dark:hover:bg-sky-600 shadow-md transition-transform active:scale-95 disabled:opacity-50 flex items-center gap-2">
+          <i v-if="cargando" class="bi bi-arrow-repeat animate-spin"></i>
+          {{ cargando ? 'Guardando...' : 'Guardar Cliente' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
 </div>

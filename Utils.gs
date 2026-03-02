@@ -57,3 +57,63 @@ function formatoMoneda(valor) {
   // Formato simple para COP: $ 10.000
   return "$ " + Number(valor).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
+
+/**
+ * CACHE HELPERS (Avoid limits of 100KB per value)
+ */
+function putCachedLongString(cache, key, value, expirationInSeconds) {
+  const chunkSize = 90000; // Safe limit below 100KB (100,000 bytes)
+  const chunks = [];
+  for (let i = 0; i < value.length; i += chunkSize) {
+    chunks.push(value.substring(i, i + chunkSize));
+  }
+  
+  cache.put(key + "_CHUNKS", chunks.length.toString(), expirationInSeconds);
+  
+  const cacheObj = {};
+  chunks.forEach((chunk, index) => {
+    cacheObj[key + "_" + index] = chunk;
+  });
+  cache.putAll(cacheObj, expirationInSeconds);
+}
+
+function getCachedLongString(cache, key) {
+  const chunksCountStr = cache.get(key + "_CHUNKS");
+  
+  // If no chunks format exists, check if there's a legacy non-chunked value
+  if (!chunksCountStr) {
+    return cache.get(key);
+  }
+  
+  const chunksCount = parseInt(chunksCountStr, 10);
+  const chunkKeys = [];
+  for (let i = 0; i < chunksCount; i++) {
+    chunkKeys.push(key + "_" + i);
+  }
+  
+  const chunks = cache.getAll(chunkKeys);
+  let value = "";
+  for (let i = 0; i < chunksCount; i++) {
+    const chunk = chunks[key + "_" + i];
+    if (chunk === null || chunk === undefined) {
+      // Chunk missing, cache is invalid
+      return null;
+    }
+    value += chunk;
+  }
+  
+  return value;
+}
+
+function removeCachedLongString(cache, key) {
+  const chunksCountStr = cache.get(key + "_CHUNKS");
+  if (chunksCountStr) {
+    const chunksCount = parseInt(chunksCountStr, 10);
+    const chunkKeys = [key + "_CHUNKS"];
+    for (let i = 0; i < chunksCount; i++) {
+      chunkKeys.push(key + "_" + i);
+    }
+    cache.removeAll(chunkKeys);
+  }
+  cache.remove(key); // Remove legacy non-chunked key too
+}

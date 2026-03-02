@@ -7,16 +7,41 @@
                 vistaActual: 'cotizador',
                 productos: [],
                 clientes: [],
+                margenesCategoria: {},
                 carrito: [],
                 cargando: false,
                 cargandoPDF: false,
                 mensaje: { tipo: '', texto: '' },
+
+                // DISPOSITIVOS Y ESTILOS
+                isMobile: false,
+                isDesktop: true,
+                isDarkMode: false,
+
+                // AUTH
+                usuarioActual: null,
+                rol: null,
+                pinForm: '',
+                cargandoLogin: false,
+                errorLogin: '',
 
                 // MODALS
                 mostrarModalClientes: false,
                 mostrarModalCarritoMobile: false,
                 mostrarModalFormCliente: false,
                 mostrarModalFormProducto: false,
+                mostrarModalPreviewPDF: false,
+                mostrarModalCalculadora: false,
+
+                // CALCULADORA MARGEN
+                calcMargen: {
+                    costoCompra: 0,
+                    bufferOriginal: 0,
+                    bufferSimulado: 0,
+                    margenPosMeta: 0,
+                    margenRestMeta: 0,
+                    margenMayorMeta: 0
+                },
 
                 busquedaCliente: '',
                 formCliente: { id_cliente_bodega: '', cliente: '', razon_social: '', identificacion: '', tipo_de_id: 'Cédula de ciudadanía', direccion: '', telefono: '', ciudad: 'Bucaramanga' },
@@ -24,6 +49,34 @@
                 configCotizacion: { tipoPrecio: 'restaurante', cliente: null },
                 filtros: { busqueda: '', categoria: '' }
             });
+
+            // --- DETECCIÓN DE PANTALLA ---
+            const checkScreenSize = () => {
+                state.isMobile = window.innerWidth <= 768; // Tailwind md breakpoint
+                state.isDesktop = window.innerWidth > 768;
+            };
+
+            // --- MODO OSCURO ---
+            const toggleDarkMode = () => {
+                state.isDarkMode = !state.isDarkMode;
+                if (state.isDarkMode) {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                }
+            };
+
+            const initTheme = () => {
+                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    state.isDarkMode = true;
+                    document.documentElement.classList.add('dark');
+                } else {
+                    state.isDarkMode = false;
+                    document.documentElement.classList.remove('dark');
+                }
+            };
 
             // --- UTILIDADES LOCALES ---
             const normalizarTexto = (txt) => (txt || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -36,6 +89,56 @@
                 if (state.filtros.categoria) res = res.filter(p => p.categoria === state.filtros.categoria);
                 return res;
             });
+
+            // --- CALCULADORA DE MÁRGENES (SIMULADOR ADMIN) ---
+            const simularPrecios = computed(() => {
+                const c_compra = Number(state.calcMargen.costoCompra) || 0;
+                const c_buffer = (Number(state.calcMargen.bufferSimulado) || 0) / 100; // Trabajamos en % UI
+                const costo_real_calc = c_compra * (1 + c_buffer);
+
+                const m_pos = (Number(state.calcMargen.margenPosMeta) || 0) / 100;
+                const m_rest = (Number(state.calcMargen.margenRestMeta) || 0) / 100;
+                const m_mayor = (Number(state.calcMargen.margenMayorMeta) || 0) / 100;
+
+                const calcPrecio = (costo, margen) => {
+                    if (margen >= 1 || margen < 0) return costo;
+                    return Math.round(costo / (1 - margen));
+                };
+
+                return {
+                    costo_real: costo_real_calc,
+                    pos: calcPrecio(costo_real_calc, m_pos),
+                    restaurante: calcPrecio(costo_real_calc, m_rest),
+                    mayorista: calcPrecio(costo_real_calc, m_mayor)
+                };
+            });
+
+            // --- UI MATH METHODS ---
+            const calcularPreciosEnVivo = (prod) => {
+                const c_compra = Number(prod.costo_compra) || 0;
+                const c_buffer = Number(prod.buffer) || 0;
+                const costo_real_calc = c_compra * (1 + c_buffer);
+
+                let m_pos = 0, m_rest = 0, m_mayor = 0;
+                if (state.margenesCategoria && state.margenesCategoria[prod.categoria]) {
+                    m_pos = Number(state.margenesCategoria[prod.categoria].margen_pos) || 0;
+                    m_rest = Number(state.margenesCategoria[prod.categoria].margen_rest) || 0;
+                    m_mayor = Number(state.margenesCategoria[prod.categoria].margen_mayor) || 0;
+                }
+
+                const calcPrecio = (costo, margen) => {
+                    if (margen >= 1) margen = margen / 100;
+                    if (margen >= 1 || margen < 0) return costo;
+                    return Math.round(costo / (1 - margen));
+                };
+
+                return {
+                    costo_real: costo_real_calc,
+                    pos: calcPrecio(costo_real_calc, m_pos),
+                    restaurante: calcPrecio(costo_real_calc, m_rest),
+                    mayorista: calcPrecio(costo_real_calc, m_mayor)
+                };
+            };
 
             const clientesFiltrados = computed(() => {
                 // Se elimina el límite de 20 para mostrar TODOS los clientes si no hay búsqueda
@@ -73,6 +176,21 @@
                     } else {
                         mostrarNotificacion('error', 'Error cargando clientes');
                     }
+                }).catch(err => {
+                    console.error("Error Fetch Clientes:", err);
+                    mostrarNotificacion('error', 'Error cargando clientes');
+                });
+            };
+
+            const recargarMargenes = () => {
+                return runGoogleScript('apiGetCategoriasMargenes').then(resMarg => {
+                    if (resMarg && resMarg.status === 'success') {
+                        state.margenesCategoria = resMarg.data;
+                    } else {
+                        console.error('Error cargando márgenes');
+                    }
+                }).catch(err => {
+                    console.error("Error Fetch Márgenes:", err);
                 });
             };
 
@@ -88,13 +206,55 @@
                             mostrarNotificacion('error', 'Error Productos: ' + (resProd ? resProd.message : 'Sin datos'));
                         }
                     }),
-                    recargarClientes()
+                    recargarClientes(),
+                    recargarMargenes()
                 ]).catch(error => {
                     console.error("Error General de Carga:", error);
                     mostrarNotificacion('error', 'Error al cargar datos iniciales');
                 }).finally(() => {
                     state.cargando = false;
                 });
+            };
+
+            // --- AUTH LOGIC ---
+            const iniciarSesion = () => {
+                if (!state.pinForm) return;
+                state.cargandoLogin = true;
+                state.errorLogin = '';
+
+                google.script.run
+                    .withSuccessHandler(res => {
+                        state.cargandoLogin = false;
+                        if (res.status === 'success') {
+                            state.usuarioActual = res.data.nombre;
+                            state.rol = res.data.rol;
+                            state.pinForm = '';
+
+                            if (state.rol === 'vendedor' && state.vistaActual === 'inventario') {
+                                state.vistaActual = 'cotizador';
+                            }
+
+                            cargarDatos();
+                        } else {
+                            state.errorLogin = res.message || 'PIN Incorrecto';
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        state.cargandoLogin = false;
+                        state.errorLogin = 'Error de red: ' + err.message;
+                    })
+                    .validarLogin(state.pinForm);
+            };
+
+            const cerrarSesion = () => {
+                if (confirm('¿Cerrar sesión segura?')) {
+                    state.usuarioActual = null;
+                    state.rol = null;
+                    state.productos = [];
+                    state.clientes = [];
+                    state.carrito = [];
+                    state.vistaActual = 'cotizador';
+                }
             };
 
             const obtenerPrecio = (p) => p.precios[state.configCotizacion.tipoPrecio] || 0;
@@ -147,6 +307,101 @@
                 mostrarNotificacion('exito', 'Cliente Asignado');
             };
 
+            // --- VISTA PREVIA PDF ---
+            const pdfPreviewHtml = computed(() => {
+                const c = state.configCotizacion.cliente;
+                const total = totalCarrito.value;
+
+                let itemsHtml = state.carrito.map(item => {
+                    const totalItem = formatoMoneda(item.precioUnitario * item.cantidad);
+                    const pu = formatoMoneda(item.precioUnitario);
+                    return `
+                    <tr class="border-b dark:border-slate-700/50 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td class="p-2 pt-3 pb-3">
+                            <div class="font-bold text-slate-800 dark:text-slate-100">${item.nombre}</div>
+                            <div class="text-[10px] text-slate-400 mt-1 uppercase">SKU: ${item.id}</div>
+                        </td>
+                        <td class="p-2 text-right text-slate-600 dark:text-slate-300">${pu}</td>
+                        <td class="p-2 text-center text-slate-800 dark:text-slate-100 font-bold">${item.cantidad}</td>
+                        <td class="p-2 text-center text-slate-500 text-xs">${item.unidad}</td>
+                        <td class="p-2 text-right font-bold text-sky-700 dark:text-sky-400">${totalItem}</td>
+                    </tr>`;
+                }).join('');
+
+                const feDate = new Date();
+                const fechaFormat = feDate.toLocaleDateString('es-CO');
+
+                return `
+                <div class="bg-white dark:bg-slate-900 mx-auto max-w-3xl p-6 md:p-10 text-sm shadow-2xl rounded-xl border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-sans transition-colors">
+                    
+                    <div class="flex justify-between items-start border-b-2 border-sky-500 pb-6 mb-8">
+                        <div>
+                            <div class="text-3xl font-black text-slate-900 dark:text-white tracking-tight">La Pezcadería <span class="text-sky-500 font-light">| Cotización</span></div>
+                            <div class="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+                                Somos Frescura y Calidad<br>
+                                Nit. 901.234.567-8<br>
+                                Calle 123 # 45-67, Bogotá
+                            </div>
+                        </div>
+                        <div class="text-right">
+                           <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cotización N°</div>
+                           <div class="text-xl font-bold text-slate-800 dark:text-slate-100 mb-3">COT-PREVIEW</div>
+                           <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Fecha</div>
+                           <div class="font-medium text-slate-700 dark:text-slate-300">${fechaFormat}</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-8 mb-8">
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Cliente</div>
+                            <div class="font-bold text-lg text-slate-800 dark:text-slate-100 mb-2">${c ? c.cliente : 'No asignado'}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Identificación</div>
+                            <div class="font-medium text-slate-700 dark:text-slate-300">${c ? c.identificacion : 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Contacto</div>
+                            <div class="font-medium text-slate-700 dark:text-slate-300 mb-2">${c && c.telefono ? c.telefono : 'N/A'}</div>
+                            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Dirección</div>
+                            <div class="font-medium text-slate-700 dark:text-slate-300">${c && c.direccion ? c.direccion : 'Ciudad'}</div>
+                        </div>
+                    </div>
+
+                    <table class="w-full text-left border-collapse mb-8">
+                        <thead>
+                            <tr class="bg-slate-50 dark:bg-slate-800/50 border-y border-slate-200 dark:border-slate-700">
+                                <th class="p-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Descripción</th>
+                                <th class="p-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Precio Unit.</th>
+                                <th class="p-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Cant.</th>
+                                <th class="p-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-center">Und.</th>
+                                <th class="p-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itemsHtml}
+                        </tbody>
+                    </table>
+
+                    <div class="flex flex-col items-end">
+                        <div class="flex items-center gap-6 mb-2">
+                           <span class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Total a Pagar</span>
+                           <span class="text-2xl font-black text-sky-600 dark:text-sky-400">${formatoMoneda(total)}</span>
+                        </div>
+                        <div class="text-[10px] text-slate-400">* Precios en Pesos Colombianos (COP)</div>
+                    </div>
+
+                    <div class="mt-16 pt-6 border-t border-slate-100 dark:border-slate-800/50 text-center text-xs text-slate-400 dark:text-slate-500">
+                        <p class="mb-1">Esta cotización tiene una validez de 15 días calendario.</p>
+                        <p>Gracias por confirmar su pedido con nosotros.</p>
+                    </div>
+                </div>`;
+            });
+
+            const abrirVistaPrevia = () => {
+                if (!state.configCotizacion.cliente) { mostrarNotificacion('error', 'Falta seleccionar cliente'); return; }
+                if (state.carrito.length === 0) { mostrarNotificacion('error', 'El carrito está vacío'); return; }
+                state.mostrarModalPreviewPDF = true;
+            };
+
             const generarPDF = () => {
                 if (!state.configCotizacion.cliente) { alert('Falta Cliente'); state.mostrarModalClientes = true; return; }
                 if (state.carrito.length === 0) { alert('Carrito vacío'); return; }
@@ -159,13 +414,60 @@
                     tipoPrecio: state.configCotizacion.tipoPrecio
                 };
 
-                google.script.run.withSuccessHandler(res => {
-                    state.cargandoPDF = false;
-                    if (res.status === 'success') {
-                        window.open(res.data.url, '_blank');
-                        if (confirm("¿Limpiar pedido?")) { state.carrito = []; state.configCotizacion.cliente = null; state.mostrarModalCarritoMobile = false; }
-                    } else alert(res.message);
-                }).generarCotizacionPDF(payload);
+                google.script.run
+                    .withSuccessHandler(res => {
+                        state.cargandoPDF = false;
+                        if (res.status === 'success') {
+                            window.open(res.data.url, '_blank');
+                            if (confirm("¿Limpiar pedido?")) { state.carrito = []; state.configCotizacion.cliente = null; state.mostrarModalCarritoMobile = false; }
+                        } else alert(res.message);
+                    })
+                    .withFailureHandler(err => {
+                        state.cargandoPDF = false;
+                        alert('Error de conectividad: ' + err.message);
+                    })
+                    .generarCotizacionPDF(payload);
+            };
+
+            // --- GESTIÓN DE INVENTARIO FLUIDO ---
+            const actualizarProductoInLine = (prod) => {
+                prod._guardando = true;
+
+                const payload = {
+                    id: prod.id,
+                    nombre: prod.nombre,
+                    categoria: prod.categoria,
+                    costo_compra: Number(prod.costo_compra) || 0,
+                    buffer: Number(prod.buffer) || 0,
+                    costo_real: Number(prod.costo_real) || 0,
+                    precio_pos: Number(prod.precios.pos) || 0,
+                    precio_rest: Number(prod.precios.restaurante) || 0,
+                    precio_mayor: Number(prod.precios.mayorista) || 0
+                };
+
+                google.script.run
+                    .withSuccessHandler(res => {
+                        prod._guardando = false;
+                        if (res.status === 'success') {
+                            prod._modificado = false;
+
+                            // 🚀 [NUEVO] - Actualizar el estado original en memoria para retener los displays
+                            const calculos = calcularPreciosEnVivo(prod);
+                            prod.costo_real = calculos.costo_real;
+                            prod.precios.pos = calculos.pos;
+                            prod.precios.restaurante = calculos.restaurante;
+                            prod.precios.mayorista = calculos.mayorista;
+
+                            mostrarNotificacion('exito', `Guardado: ${payload.nombre}`);
+                        } else {
+                            mostrarNotificacion('error', res.message || 'Error al guardar');
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        prod._guardando = false;
+                        mostrarNotificacion('error', 'Error de red: ' + err.message);
+                    })
+                    .actualizarProductoBackend(payload);
             };
 
             // CRUD Simples
@@ -208,20 +510,42 @@
 
             const guardarProducto = () => {
                 state.cargando = true;
-                google.script.run.withSuccessHandler(r => { state.cargando = false; if (r.status == 'success') { state.mostrarModalFormProducto = false; cargarDatos(); } }).guardarProductoBackend(JSON.parse(JSON.stringify(state.formProducto)));
+                google.script.run
+                    .withSuccessHandler(r => {
+                        state.cargando = false;
+                        if (r.status == 'success') {
+                            state.mostrarModalFormProducto = false;
+                            cargarDatos();
+                        } else {
+                            mostrarNotificacion('error', r.message);
+                        }
+                    })
+                    .withFailureHandler(err => {
+                        state.cargando = false;
+                        mostrarNotificacion('error', 'Error de red: ' + err.message);
+                    })
+                    .guardarProductoBackend(JSON.parse(JSON.stringify(state.formProducto)));
             };
 
             const cambiarVista = (v) => state.vistaActual = v;
             const formatoMoneda = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
             const mostrarNotificacion = (t, m) => { state.mensaje = { tipo: t, texto: m }; setTimeout(() => state.mensaje = { tipo: '', texto: '' }, 3000); };
 
-            onMounted(cargarDatos);
+            onMounted(() => {
+                // Configuración Inicial de Temas e UI
+                initTheme();
+                checkScreenSize();
+                window.addEventListener('resize', checkScreenSize);
+
+                // La carga de datos ahora es lanzada por iniciarSesion()
+            });
 
             return {
                 ...Vue.toRefs(state), productosFiltrados, clientesFiltrados, categoriasUnicas, totalCarrito, cantidadTotalItems,
                 obtenerPrecio, agregarAlCarrito, cambiarCantidad, eliminarDelCarrito, vaciarCarrito, seleccionarCliente,
-                generarPDF, cambiarVista, formatoMoneda, abrirFormularioCliente, guardarCliente, guardarProducto,
-                obtenerBadgePrecio // <--- IMPORTANTE: Exportamos la nueva función
+                generarPDF, abrirVistaPrevia, pdfPreviewHtml, cambiarVista, formatoMoneda, abrirFormularioCliente, guardarCliente, guardarProducto,
+                obtenerBadgePrecio, iniciarSesion, cerrarSesion, actualizarProductoInLine, calcularPreciosEnVivo,
+                toggleDarkMode, simularPrecios
             };
         }
     }).mount('#app');

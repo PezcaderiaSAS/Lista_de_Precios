@@ -51,7 +51,7 @@ function generarCotizacionPDF(payload) {
     });
 
   } catch (e) {
-    Logger.log("Error generarCotizacionPDF: " + e.toString());
+    console.error("Error generarCotizacionPDF: " + e.toString());
     return responseError("Error generando PDF: " + e.message);
   }
 }

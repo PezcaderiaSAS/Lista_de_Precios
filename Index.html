@@ -1,88 +1,156 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 
 <head>
-    <base target="_top">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cotizador La Pezcadería</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>La Pezcadería | App Comercial</title>
 
-    <?!= include('Estilos'); ?>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class', // Habilitar modo oscuro via clase 'dark'
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <?!= include('Estilos'); ?>
 </head>
 
-<body class="bg-slate-100 text-slate-800 font-sans h-screen flex flex-col overflow-hidden">
+<body
+  class="bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans h-screen flex flex-col overflow-hidden selection:bg-sky-200">
 
-    <div id="app" class="flex flex-col h-full">
+  <div id="app" class="flex flex-col h-full relative">
 
-        <nav class="bg-sky-900 text-white shadow-md z-50 shrink-0">
-            <div class="max-w-7xl mx-auto px-4">
-                <div class="flex items-center justify-between h-16">
+    <!-- PANTALLA DE LOGIN (Protección) -->
+    <template v-if="!usuarioActual">
+      <?!= include('View_Login'); ?>
+    </template>
 
-                    <div class="flex items-center gap-3">
-                        <div class="bg-sky-700 p-2 rounded-lg">
-                            <i class="bi bi-water text-xl"></i>
-                        </div>
-                        <span class="font-bold text-lg tracking-wide">La Pezcadería <span
-                                class="font-normal text-sky-300">| Cotizador</span></span>
-                    </div>
+    <!-- APLICACIÓN PRINCIPAL -->
+    <template v-else>
+      <nav v-if="isDesktop"
+        class="flex bg-sky-900 dark:bg-slate-950 text-white shadow-md z-40 shrink-0 h-16 items-center px-6 justify-between transition-colors duration-300">
+        <div class="flex items-center gap-3">
+          <div class="bg-sky-700 dark:bg-sky-800 p-2 rounded-lg"><i class="bi bi-water text-xl"></i></div>
+          <span class="font-bold text-lg tracking-wide">La Pezcadería <span class="font-normal text-sky-300">|
+              Panel</span></span>
+        </div>
 
-                    <div class="hidden md:flex space-x-4">
-                        <button @click="cambiarVista('cotizador')"
-                            :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', vistaActual === 'cotizador' ? 'bg-sky-800 text-white shadow-inner' : 'text-sky-100 hover:bg-sky-800']">
-                            <i class="bi bi-cart4 mr-1"></i> Cotizar
-                        </button>
-                        <button @click="cambiarVista('clientes')"
-                            :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', vistaActual === 'clientes' ? 'bg-sky-800 text-white shadow-inner' : 'text-sky-100 hover:bg-sky-800']">
-                            <i class="bi bi-people-fill mr-1"></i> Clientes
-                        </button>
-                        <button @click="cambiarVista('inventario')"
-                            :class="['px-4 py-2 rounded-md text-sm font-medium transition-colors', vistaActual === 'inventario' ? 'bg-sky-800 text-white shadow-inner' : 'text-sky-100 hover:bg-sky-800']">
-                            <i class="bi bi-box-seam mr-1"></i> Inventario
-                        </button>
-                    </div>
+        <div class="flex space-x-2 items-center">
+          <!-- Dark Mode Toggle -->
+          <button @click="toggleDarkMode" class="mr-4 text-xl text-sky-200 hover:text-white transition-colors"
+            title="Alternar Modo Oscuro">
+            <i :class="isDarkMode ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill'"></i>
+          </button>
 
-                    <div class="flex items-center gap-3">
-                        <div v-if="cargando" class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span class="text-xs text-sky-200">v1.0</span>
-                    </div>
-                </div>
-            </div>
-        </nav>
+          <!-- Modern Role Badge -->
+          <span
+            :class="['mr-3 text-xs font-bold px-2.5 py-1 rounded-full shadow-sm', rol === 'admin' ? 'bg-emerald-600 text-white' : 'bg-slate-700 text-slate-200']">
+            <i class="bi bi-person-fill"></i> {{ usuarioActual }} <span class="capitalize hidden lg:inline ml-1">- {{
+              rol }}</span>
+          </span>
 
-        <main class="flex-grow overflow-hidden relative">
+          <button @click="cambiarVista('cotizador')"
+            :class="['px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', vistaActual === 'cotizador' ? 'bg-sky-800 dark:bg-slate-800 shadow-inner' : 'hover:bg-sky-800/50 dark:hover:bg-slate-800/50']">
+            <i class="bi bi-cart4 mr-1"></i> Cotizar
+          </button>
+          <button @click="cambiarVista('clientes')"
+            :class="['px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', vistaActual === 'clientes' ? 'bg-sky-800 dark:bg-slate-800 shadow-inner' : 'hover:bg-sky-800/50 dark:hover:bg-slate-800/50']">
+            <i class="bi bi-people-fill mr-1"></i> Clientes
+          </button>
+          <button v-if="rol === 'admin'" @click="cambiarVista('inventario')"
+            :class="['px-4 py-2 rounded-md text-sm font-medium transition-all duration-200', vistaActual === 'inventario' ? 'bg-sky-800 dark:bg-slate-800 shadow-inner' : 'hover:bg-sky-800/50 dark:hover:bg-slate-800/50']">
+            <i class="bi bi-box-seam mr-1"></i> Inventario
+          </button>
+          <button @click="cerrarSesion" title="Cerrar Sesión"
+            class="ml-2 px-3 py-2 text-red-200 hover:text-white hover:bg-red-600/80 rounded-md transition-all">
+            <i class="bi bi-power"></i>
+          </button>
+        </div>
+      </nav>
 
-            <div v-show="vistaActual === 'cotizador'" class="h-full w-full">
-                <?!= include('View_Cotizador'); ?>
-            </div>
+      <main
+        class="flex-grow overflow-hidden relative w-full bg-slate-100 dark:bg-slate-900 md:p-0 pb-16 transition-colors duration-300">
 
-            <div v-if="vistaActual === 'clientes'" class="h-full w-full overflow-y-auto p-6">
-                <?!= include('View_Clientes'); ?>
-            </div>
+        <div v-show="vistaActual === 'cotizador'" class="h-full w-full">
+          <?!= include('View_Cotizador'); ?>
+        </div>
 
-            <div v-if="vistaActual === 'inventario'" class="h-full w-full overflow-y-auto p-6">
-                <?!= include('View_Inventario'); ?>
-            </div>
+        <div v-if="vistaActual === 'clientes'" class="h-full w-full overflow-y-auto p-2 md:p-6 scrollbar-hide">
+          <?!= include('View_Clientes'); ?>
+        </div>
 
-        </main>
+        <div v-if="vistaActual === 'inventario' && rol === 'admin'"
+          class="h-full w-full overflow-y-auto p-2 md:p-6 scrollbar-hide">
+          <?!= include('View_Inventario'); ?>
+        </div>
 
-        <transition name="slide-fade">
-            <div v-if="mensaje.texto"
-                :class="['absolute bottom-5 right-5 px-6 py-4 rounded-lg shadow-2xl z-50 flex items-center gap-3 text-white max-w-sm', mensaje.tipo === 'error' ? 'bg-red-600' : 'bg-emerald-600']">
-                <i
-                    :class="['bi text-xl', mensaje.tipo === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill']"></i>
-                <div>
-                    <p class="font-bold text-sm">{{ mensaje.tipo === 'error' ? 'Error' : 'Éxito' }}</p>
-                    <p class="text-sm opacity-90">{{ mensaje.texto }}</p>
-                </div>
-            </div>
-        </transition>
+      </main>
 
+      <nav v-if="isMobile"
+        class="fixed bottom-0 left-0 w-full bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-around items-center h-16 z-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] pb-safe transition-colors duration-300">
+        <!-- Opciones Rápidas Móvil - Modo Oscuro -->
+        <button @click="toggleDarkMode"
+          class="flex flex-col items-center justify-center w-full h-full text-slate-400 dark:text-slate-500 hover:text-sky-500 dark:hover:text-sky-400">
+          <i :class="['text-2xl mb-0.5', isDarkMode ? 'bi-sun-fill' : 'bi-moon-stars-fill']"></i>
+          <span class="text-[10px] font-medium">{{ isDarkMode ? 'Claro' : 'Oscuro' }}</span>
+        </button>
+
+        <button @click="cambiarVista('cotizador')"
+          :class="['flex flex-col items-center justify-center w-full h-full', vistaActual === 'cotizador' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500']">
+          <i :class="['text-2xl mb-0.5', vistaActual === 'cotizador' ? 'bi-cart-fill' : 'bi-cart']"></i>
+          <span class="text-[10px] font-medium">Venta</span>
+        </button>
+
+        <button @click="cambiarVista('clientes')"
+          :class="['flex flex-col items-center justify-center w-full h-full', vistaActual === 'clientes' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500']">
+          <i :class="['text-2xl mb-0.5', vistaActual === 'clientes' ? 'bi-people-fill' : 'bi-people']"></i>
+          <span class="text-[10px] font-medium">Clientes</span>
+        </button>
+
+        <button v-if="rol === 'admin'" @click="cambiarVista('inventario')"
+          :class="['flex flex-col items-center justify-center w-full h-full', vistaActual === 'inventario' ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400 dark:text-slate-500']">
+          <i :class="['text-2xl mb-0.5', vistaActual === 'inventario' ? 'bi-box-seam-fill' : 'bi-box-seam']"></i>
+          <span class="text-[10px] font-medium">Stock</span>
+        </button>
+
+        <button @click="cerrarSesion"
+          class="flex flex-col items-center justify-center w-full h-full text-red-500 dark:text-red-400">
+          <i class="text-2xl mb-0.5 bi-power"></i>
+          <span class="text-[10px] font-medium">Salir</span>
+        </button>
+      </nav>
+    </template>
+
+    <transition name="slide-up">
+      <div v-if="mensaje.texto" :class="['fixed bottom-20 left-4 right-4 md:right-5 md:left-auto md:bottom-5 px-4 py-3 rounded-lg shadow-2xl z-[60] flex items-center gap-3 text-white text-sm font-medium', 
+                      mensaje.tipo === 'error' ? 'bg-red-600' : 'bg-slate-800']">
+        <i
+          :class="['bi text-lg', mensaje.tipo === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill']"></i>
+        <span>{{ mensaje.texto }}</span>
+      </div>
+    </transition>
+
+    <div v-if="cargando"
+      class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[70] flex flex-col items-center justify-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-600 mb-3"></div>
+      <p class="text-sky-700 font-bold animate-pulse">Procesando...</p>
     </div>
 
-    <?!= include('JS_Main'); ?>
+  </div>
+
+  <?!= include('JS_Main'); ?>
 </body>
 
 </html>

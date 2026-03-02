@@ -1,22 +1,409 @@
-<div class="bg-white p-8 rounded-lg shadow max-w-6xl mx-auto mt-4">
-    <h2 class="text-2xl font-bold mb-4 text-slate-700 flex justify-between">
-        <span>Inventario Maestro</span>
-        <span class="text-sm font-normal bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full">Vista Segura (Costos
-            Ocultos)</span>
-    </h2>
-    <p class="mb-4 text-slate-500">Esta vista permite ver todos los productos. La edición se habilitará en la siguiente
-        fase.</p>
+<div class="flex flex-col h-full bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
 
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div v-for="prod in productos" :key="prod.id" class="border p-4 rounded hover:shadow-md transition">
-            <div class="font-bold text-sky-900">{{ prod.nombre }}</div>
-            <div class="text-xs text-slate-500 mb-2">{{ prod.categoria }}</div>
-            <div class="grid grid-cols-2 gap-2 text-xs mt-2 bg-slate-50 p-2 rounded">
-                <div>Pos: <span class="font-bold">{{ formatoMoneda(prod.precios.pos) }}</span></div>
-                <div>Rest: <span class="font-bold">{{ formatoMoneda(prod.precios.restaurante) }}</span></div>
-                <div class="col-span-2 border-t pt-1 mt-1">Mayor: <span class="font-bold text-green-600">{{
-                        formatoMoneda(prod.precios.mayorista) }}</span></div>
-            </div>
-        </div>
+  <div
+    class="bg-white dark:bg-slate-950 p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 shadow-sm flex justify-between items-center relative z-10 shrink-0 transition-colors duration-300">
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+        <i class="bi bi-box-seam-fill text-yellow-500"></i> Gestor de Inventario
+      </h2>
+      <p class="text-[10px] md:text-xs text-slate-500 dark:text-slate-400 mt-1 uppercase font-bold tracking-wider">
+        Acceso de Administrador
+      </p>
     </div>
+    <button @click="mostrarModalFormProducto = true"
+      class="bg-sky-600 dark:bg-sky-700 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-sky-700 dark:hover:bg-sky-600 shadow font-bold flex items-center gap-2 transition-transform active:scale-95">
+      <i class="bi bi-plus-lg text-lg"></i> <span class="hidden md:inline">Nuevo Producto</span>
+    </button>
+  </div>
+
+  <div class="p-2 md:p-6 overflow-hidden flex flex-col flex-grow">
+    <div class="mb-4 shrink-0 px-2 md:px-0">
+      <input type="text" v-model="filtros.busqueda" placeholder="🔎 Buscar producto para editar..."
+        class="w-full md:w-1/2 p-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-lg shadow-sm focus:ring-2 focus:ring-sky-500 focus:border-sky-500 dark:focus:ring-sky-400 dark:focus:border-sky-400 outline-none transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500">
+    </div>
+
+    <!-- TABLA FLUIDA DE EDICIÓN (Desktop) -->
+    <div v-if="isDesktop"
+      class="overflow-auto bg-white dark:bg-slate-900/80 rounded-xl shadow-lg border border-slate-200 dark:border-slate-800 flex-grow relative scrollbar-hide backdrop-blur-md">
+      <table class="w-full text-left border-collapse text-sm whitespace-nowrap">
+        <thead class="bg-slate-50/90 dark:bg-slate-950/90 sticky top-0 z-10 shadow-sm backdrop-blur-sm">
+          <tr>
+            <th class="p-3 font-bold text-slate-600 dark:text-slate-300 border-b dark:border-slate-800">ID</th>
+            <th class="p-3 font-bold text-slate-600 dark:text-slate-300 border-b dark:border-slate-800">Producto</th>
+            <th class="p-3 font-bold text-slate-600 dark:text-slate-300 border-b dark:border-slate-800">Categoría</th>
+            <!-- Costos -->
+            <th
+              class="p-3 font-bold text-blue-600 dark:text-blue-400 border-b border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-md">
+              C. Compra</th>
+            <th
+              class="p-3 font-bold text-blue-600 dark:text-blue-400 border-b border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-md">
+              Buffer</th>
+            <th
+              class="p-3 font-bold text-blue-600 dark:text-blue-400 border-b border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-md"
+              title="Costo Real = Compra + Buffer">C. Real
+              (Ref)</th>
+            <!-- Ventas -->
+            <th colspan="3"
+              class="p-0 border-b border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/50 dark:bg-emerald-900/10 backdrop-blur-md">
+              <div
+                class="flex justify-between items-center px-3 py-2 border-b border-emerald-100/50 dark:border-emerald-800/30">
+                <span class="font-bold text-emerald-700 dark:text-emerald-400 text-xs uppercase tracking-wider">Precios
+                  de Venta</span>
+                <button @click="mostrarModalCalculadora = true"
+                  class="bg-emerald-100 dark:bg-emerald-800/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-700/50 px-2 py-1 rounded text-[10px] font-bold transition-colors flex items-center gap-1 shadow-sm">
+                  <i class="bi bi-calculator"></i> Probar Márgenes
+                </button>
+              </div>
+              <div class="grid grid-cols-3">
+                <div
+                  class="p-2 font-bold text-emerald-600 dark:text-emerald-400 border-r border-emerald-100 dark:border-emerald-800/30 text-center">
+                  POS</div>
+                <div
+                  class="p-2 font-bold text-emerald-600 dark:text-emerald-400 border-r border-emerald-100 dark:border-emerald-800/30 text-center">
+                  Restaurante</div>
+                <div class="p-2 font-bold text-emerald-600 dark:text-emerald-400 text-center">Mayorista</div>
+              </div>
+            </th>
+            <th
+              class="p-3 font-bold text-slate-600 dark:text-slate-300 border-b dark:border-slate-800 text-center sticky right-0 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-sm shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.5)]">
+              Acción</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+          <tr v-for="prod in productosFiltrados" :key="prod.id"
+            class="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 group transition-colors">
+            <td class="p-3 text-slate-400 dark:text-slate-500 font-mono text-xs">{{ prod.id }}</td>
+            <td class="p-3 font-bold text-slate-800 dark:text-slate-200">{{ prod.nombre }}</td>
+            <td class="p-3 text-slate-500 dark:text-slate-400 text-xs">{{ prod.categoria }}</td>
+
+            <td class="p-2 bg-blue-50/20 dark:bg-blue-900/5">
+              <input type="number" v-model="prod.costo_compra" @input="prod._modificado=true"
+                class="w-24 p-1.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-blue-800/50 rounded text-right focus:border-blue-400 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none transition-colors">
+            </td>
+            <td class="p-2 bg-blue-50/20 dark:bg-blue-900/5">
+              <input type="number" v-model="prod.buffer" @input="prod._modificado=true"
+                class="w-20 p-1.5 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 border border-slate-200 dark:border-blue-800/50 rounded text-right focus:border-blue-400 dark:focus:border-blue-400 focus:ring-1 focus:ring-blue-400 outline-none transition-colors">
+            </td>
+            <td class="p-2 bg-blue-50/20 dark:bg-blue-900/5">
+              <div
+                class="w-24 p-1.5 border border-slate-200/50 dark:border-blue-800/30 rounded text-right bg-slate-100/50 dark:bg-slate-800/30 text-slate-500 dark:text-slate-400 cursor-not-allowed select-none backdrop-blur-sm"
+                title="Autocalculado: Compra + Buffer">
+                {{ formatoMoneda(calcularPreciosEnVivo(prod).costo_real) }}
+              </div>
+            </td>
+
+            <td class="p-2 bg-emerald-50/20 dark:bg-emerald-900/5">
+              <div
+                class="w-24 p-1.5 border border-emerald-200/50 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-900/20 backdrop-blur-sm rounded text-right font-bold text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+                {{ formatoMoneda(calcularPreciosEnVivo(prod).pos) }}
+              </div>
+            </td>
+            <td class="p-2 bg-emerald-50/20 dark:bg-emerald-900/5">
+              <div
+                class="w-24 p-1.5 border border-emerald-200/50 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-900/20 backdrop-blur-sm rounded text-right font-bold text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+                {{ formatoMoneda(calcularPreciosEnVivo(prod).restaurante) }}
+              </div>
+            </td>
+            <td class="p-2 bg-emerald-50/20 dark:bg-emerald-900/5">
+              <div
+                class="w-24 p-1.5 border border-emerald-200/50 dark:border-emerald-800/30 bg-emerald-50/50 dark:bg-emerald-900/20 backdrop-blur-sm rounded text-right font-bold text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05)]">
+                {{ formatoMoneda(calcularPreciosEnVivo(prod).mayorista) }}
+              </div>
+            </td>
+
+            <td
+              class="p-3 text-center sticky right-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.05)] dark:shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.5)] group-hover:bg-slate-50/90 dark:group-hover:bg-slate-800/90 transition-colors">
+              <button v-if="prod._modificado && !prod._guardando" @click="actualizarProductoInLine(prod)"
+                class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-3 py-1.5 rounded font-bold text-xs shadow-sm transition-all active:scale-95 animate-[pulse_2s_infinite]">
+                Guardar
+              </button>
+              <div v-else-if="prod._guardando"
+                class="text-slate-400 dark:text-slate-500 flex items-center justify-center gap-1 text-xs font-medium">
+                <i class="bi bi-arrow-repeat animate-spin text-sm"></i>
+              </div>
+              <div v-else class="text-slate-300 dark:text-slate-600 text-xs font-medium"><i
+                  class="bi bi-check2 text-lg"></i></div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- TARJETAS FLUIDAS (Mobile) -->
+    <div v-if="isMobile" class="overflow-y-auto flex-grow space-y-4 pb-4 px-1 scrollbar-hide">
+      <div v-for="prod in productosFiltrados" :key="'mob'+prod.id"
+        class="bg-white/80 dark:bg-slate-900/80 p-4 rounded-xl shadow-md border border-slate-200/50 dark:border-slate-800/50 backdrop-blur-md transition-colors">
+        <div class="font-bold text-slate-800 dark:text-slate-100 text-lg leading-tight mb-1">{{ prod.nombre }}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-400 mb-4 flex justify-between items-center">
+          <span class="bg-slate-100/80 dark:bg-slate-800/80 px-2 py-0.5 rounded text-[10px] uppercase font-bold">{{
+            prod.categoria }}</span>
+          <span class="font-mono text-[10px] text-slate-400 dark:text-slate-500">ID: {{ prod.id }}</span>
+        </div>
+
+        <div
+          class="grid grid-cols-2 gap-3 mb-3 p-3 bg-blue-50/40 dark:bg-blue-900/10 rounded-xl border border-blue-100/50 dark:border-blue-900/30 backdrop-blur-sm">
+          <div>
+            <label
+              class="text-[9px] font-bold text-blue-800 dark:text-blue-400 block mb-1 uppercase tracking-wider">Costo
+              Compra</label>
+            <input type="number" v-model="prod.costo_compra" @input="prod._modificado=true"
+              class="w-full p-2 text-sm bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800/50 rounded font-medium text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 outline-none transition-all">
+          </div>
+          <div>
+            <label
+              class="text-[9px] font-bold text-blue-800 dark:text-blue-400 block mb-1 uppercase tracking-wider">Buffer</label>
+            <input type="number" v-model="prod.buffer" @input="prod._modificado=true"
+              class="w-full p-2 text-sm bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800/50 rounded font-medium text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 outline-none transition-all">
+          </div>
+        </div>
+
+        <div
+          class="grid grid-cols-3 gap-2 p-3 bg-emerald-50/40 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/30 backdrop-blur-sm">
+          <div>
+            <label
+              class="text-[9px] font-bold text-emerald-800 dark:text-emerald-400 block mb-1 uppercase tracking-wider text-center">POS</label>
+            <div
+              class="w-full p-1.5 text-xs text-center font-bold border border-emerald-200/50 dark:border-emerald-800/50 shadow-inner rounded bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none">
+              {{ formatoMoneda(calcularPreciosEnVivo(prod).pos) }}
+            </div>
+          </div>
+          <div>
+            <label
+              class="text-[9px] font-bold text-emerald-800 dark:text-emerald-400 block mb-1 uppercase tracking-wider text-center">Restaurante</label>
+            <div
+              class="w-full p-1.5 text-xs text-center font-bold border border-emerald-200/50 dark:border-emerald-800/50 shadow-inner rounded bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none">
+              {{ formatoMoneda(calcularPreciosEnVivo(prod).restaurante) }}
+            </div>
+          </div>
+          <div>
+            <label
+              class="text-[9px] font-bold text-emerald-800 dark:text-emerald-400 block mb-1 uppercase tracking-wider text-center">Mayorista</label>
+            <div
+              class="w-full p-1.5 text-xs text-center font-bold border border-emerald-200/50 dark:border-emerald-800/50 shadow-inner rounded bg-emerald-50/50 dark:bg-emerald-900/20 text-emerald-800/80 dark:text-emerald-300/90 cursor-not-allowed select-none">
+              {{ formatoMoneda(calcularPreciosEnVivo(prod).mayorista) }}
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <button v-if="prod._modificado && !prod._guardando" @click="actualizarProductoInLine(prod)"
+            class="bg-yellow-400 hover:bg-yellow-500 text-yellow-900 px-4 py-3 w-full rounded-lg font-bold shadow-md transition-transform active:scale-95 flex items-center justify-center gap-2">
+            <i class="bi bi-save-fill"></i> Guardar Cambios
+          </button>
+          <div v-else-if="prod._guardando"
+            class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 rounded-lg py-3 w-full text-center flex justify-center items-center gap-2 font-medium border border-slate-200 dark:border-slate-700">
+            <i class="bi bi-arrow-repeat animate-spin text-lg"></i> Guardando...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR NUEVO PRODUCTO -->
+  <div v-if="mostrarModalFormProducto"
+    class="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 transition-colors">
+    <div
+      class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl dark:shadow-[0_0_40px_rgba(0,0,0,0.5)] border border-slate-200/50 dark:border-slate-700/50 w-full max-w-md overflow-hidden animate-[fadeIn_0.2s] max-h-[90vh] flex flex-col">
+      <div
+        class="p-4 md:p-5 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center shrink-0">
+        <h3 class="font-bold text-slate-800 dark:text-slate-100 text-lg flex items-center gap-2"><i
+            class="bi bi-plus-circle-fill text-sky-600 dark:text-sky-400"></i> Agregar Producto</h3>
+        <button @click="mostrarModalFormProducto = false"
+          class="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-red-50 dark:hover:bg-slate-800"><i
+            class="bi bi-x-lg"></i></button>
+      </div>
+
+      <div class="p-5 md:p-6 space-y-4 overflow-y-auto">
+        <div>
+          <label class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Nombre del Producto *</label>
+          <input type="text" v-model="formProducto.nombre"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 block">Categoría</label>
+          <select v-model="formProducto.categoria"
+            class="w-full bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-100 border-2 border-slate-200 dark:border-slate-700 focus:border-sky-500 dark:focus:border-sky-400 rounded-lg p-2.5 outline-none transition-colors">
+            <option v-for="cat in categoriasUnicas" :value="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-3 gap-3">
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 block text-center mb-1">Precio
+              POS</label>
+            <input type="number" v-model="formProducto.precio_pos"
+              class="w-full border-2 border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/10 focus:border-emerald-400 dark:focus:border-emerald-500 rounded-lg p-2 text-center font-bold text-emerald-800 dark:text-emerald-400 outline-none transition-colors">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 block text-center mb-1">P.
+              Rest.</label>
+            <input type="number" v-model="formProducto.precio_rest"
+              class="w-full border-2 border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/10 focus:border-emerald-400 dark:focus:border-emerald-500 rounded-lg p-2 text-center font-bold text-emerald-800 dark:text-emerald-400 outline-none transition-colors">
+          </div>
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 dark:text-slate-400 block text-center mb-1">P.
+              Mayor</label>
+            <input type="number" v-model="formProducto.precio_mayor"
+              class="w-full border-2 border-emerald-100 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/10 focus:border-emerald-400 dark:focus:border-emerald-500 rounded-lg p-2 text-center font-bold text-emerald-800 dark:text-emerald-400 outline-none transition-colors">
+          </div>
+        </div>
+
+        <div
+          class="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg text-xs text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-800/50 flex items-start gap-2 shadow-sm">
+          <i class="bi bi-info-circle-fill text-amber-500 dark:text-amber-400 mt-0.5"></i>
+          <p>Los costos reales se inicializarán en $0. Después de crearlo, podrás editar fluídamente sus costos en la
+            tabla principal.</p>
+        </div>
+      </div>
+
+      <div
+        class="p-4 md:p-5 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-800 shrink-0 flex gap-3 justify-end">
+        <button @click="mostrarModalFormProducto = false"
+          class="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 font-bold px-4 py-2 transition-colors">Cancelar</button>
+        <button @click="guardarProducto"
+          class="bg-sky-600 dark:bg-sky-700 text-white px-6 py-2 rounded-lg font-bold hover:bg-sky-700 dark:hover:bg-sky-600 shadow-md transition-transform active:scale-95">
+          Crear Producto
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CALCULADORA DE MÁRGENES (SIMULADOR ADMIN) -->
+  <div v-if="mostrarModalCalculadora"
+    class="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4 transition-colors">
+    <div
+      class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200/50 dark:border-slate-700/50 w-full max-w-2xl overflow-hidden animate-[slideUp_0.3s_ease] max-h-[90vh] flex flex-col">
+
+      <!-- Header -->
+      <div class="px-6 py-4 bg-emerald-600 dark:bg-emerald-700 flex justify-between items-center shrink-0">
+        <h3 class="font-bold text-white text-lg flex items-center gap-2">
+          <i class="bi bi-calculator"></i> Simulador de Márgenes
+        </h3>
+        <button @click="mostrarModalCalculadora = false"
+          class="text-emerald-100 hover:text-white transition-colors w-8 h-8 flex items-center justify-center rounded-full hover:bg-emerald-500/50 dark:hover:bg-emerald-800/50">
+          <i class="bi bi-x-lg text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950">
+
+        <!-- Instrucciones -->
+        <div
+          class="bg-sky-50 dark:bg-sky-900/20 p-4 rounded-xl mb-6 border border-sky-100 dark:border-sky-800/50 flex gap-3 text-sm text-sky-800 dark:text-sky-300">
+          <i class="bi bi-info-circle-fill text-sky-500 text-lg shrink-0 mt-0.5"></i>
+          <p>Utiliza esta herramienta para simular cómo un cambio en el <strong>Costo de Compra</strong> o en el
+            <strong>Buffer (%)</strong> afectará a los precios finales de venta basándonos en los márgenes configurados
+            en el sistema. <br><em>Ningún valor se guardará en la base de datos desde este simulador.</em></p>
+        </div>
+
+        <!-- Entradas Base -->
+        <h4 class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Valores Base</h4>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div
+            class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-400 mb-2 block">Costo de Compra ($)</label>
+            <input type="number" v-model="calcMargen.costoCompra"
+              class="w-full bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-300 dark:border-slate-600 focus:border-sky-500 rounded-lg p-3 outline-none font-bold text-lg transition-colors">
+          </div>
+          <div
+            class="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-200 dark:border-blue-800/50 shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">
+              Simulando</div>
+            <label class="text-xs font-bold text-blue-700 dark:text-blue-400 mb-2 block">Buffer Aplicado (%)</label>
+            <div class="flex items-center gap-2">
+              <input type="number" v-model="calcMargen.bufferSimulado"
+                class="w-full bg-white dark:bg-slate-800 text-blue-800 dark:text-blue-300 border border-blue-300 dark:border-blue-700 focus:border-blue-500 rounded-lg p-3 outline-none font-black text-lg transition-colors">
+              <span class="text-xl font-black text-blue-300">%</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-center mb-6">
+          <div
+            class="bg-slate-200/50 dark:bg-slate-800/50 p-3 rounded-xl inline-flex items-center gap-4 border border-slate-300 dark:border-slate-700">
+            <span class="text-sm font-bold text-slate-500 dark:text-slate-400 tracking-wide uppercase">Costo
+              Real:</span>
+            <span class="text-2xl font-black text-slate-800 dark:text-slate-200">{{
+              formatoMoneda(simularPrecios.costo_real) }}</span>
+          </div>
+        </div>
+
+        <!-- Proyección -->
+        <div class="flex items-center justify-between mb-3 mt-4">
+          <h4 class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Proyección de Ventas
+          </h4>
+          <span class="text-[10px] text-slate-400 italic">*Márgenes requeridos por negocio</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- POS -->
+          <div
+            class="bg-emerald-50 max-w-full dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl overflow-hidden flex flex-col">
+            <div
+              class="bg-emerald-100 dark:bg-emerald-800/50 px-3 py-2 text-center border-b border-emerald-200 dark:border-emerald-800/50 flex justify-between items-center group">
+              <span class="font-bold text-emerald-800 dark:text-emerald-300 text-xs uppercase">Precio POS</span>
+              <div class="flex items-center gap-1">
+                <input type="number" v-model="calcMargen.margenPosMeta"
+                  class="w-12 text-center text-[10px] font-bold py-0.5 rounded bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 outline-none">
+                <span class="text-[10px] font-bold text-emerald-600">%</span>
+              </div>
+            </div>
+            <div class="p-4 flex-grow flex items-center justify-center">
+              <span class="text-xl md:text-2xl font-black text-emerald-700 dark:text-emerald-400">{{
+                formatoMoneda(simularPrecios.pos) }}</span>
+            </div>
+          </div>
+
+          <!-- Rest -->
+          <div
+            class="bg-emerald-50 max-w-full dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl overflow-hidden flex flex-col">
+            <div
+              class="bg-emerald-100 dark:bg-emerald-800/50 px-3 py-2 text-center border-b border-emerald-200 dark:border-emerald-800/50 flex justify-between items-center group">
+              <span class="font-bold text-emerald-800 dark:text-emerald-300 text-xs uppercase">Precio Rest.</span>
+              <div class="flex items-center gap-1">
+                <input type="number" v-model="calcMargen.margenRestMeta"
+                  class="w-12 text-center text-[10px] font-bold py-0.5 rounded bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 outline-none">
+                <span class="text-[10px] font-bold text-emerald-600">%</span>
+              </div>
+            </div>
+            <div class="p-4 flex-grow flex items-center justify-center">
+              <span class="text-xl md:text-2xl font-black text-emerald-700 dark:text-emerald-400">{{
+                formatoMoneda(simularPrecios.restaurante) }}</span>
+            </div>
+          </div>
+
+          <!-- Mayorista -->
+          <div
+            class="bg-emerald-50 max-w-full dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-xl overflow-hidden flex flex-col">
+            <div
+              class="bg-emerald-100 dark:bg-emerald-800/50 px-3 py-2 text-center border-b border-emerald-200 dark:border-emerald-800/50 flex justify-between items-center group">
+              <span class="font-bold text-emerald-800 dark:text-emerald-300 text-xs uppercase">Precio Mayor.</span>
+              <div class="flex items-center gap-1">
+                <input type="number" v-model="calcMargen.margenMayorMeta"
+                  class="w-12 text-center text-[10px] font-bold py-0.5 rounded bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600 outline-none">
+                <span class="text-[10px] font-bold text-emerald-600">%</span>
+              </div>
+            </div>
+            <div class="p-4 flex-grow flex items-center justify-center">
+              <span class="text-xl md:text-2xl font-black text-emerald-700 dark:text-emerald-400">{{
+                formatoMoneda(simularPrecios.mayorista) }}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div
+        class="px-6 py-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shrink-0 flex justify-end">
+        <button @click="mostrarModalCalculadora = false"
+          class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-6 py-2 rounded-lg font-bold transition-colors">
+          Cerrar Simulador
+        </button>
+      </div>
+
+    </div>
+  </div>
+
 </div>

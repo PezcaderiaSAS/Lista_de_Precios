@@ -1,33 +1,60 @@
 <style>
-    /* Animación de notificaciones */
-    .slide-fade-enter-active {
-        transition: all 0.3s ease-out;
-    }
+  /* Animación de entrada para elementos de lista */
+  .list-enter-active,
+  .list-leave-active {
+    transition: all 0.3s ease;
+  }
+  .list-enter-from,
+  .list-leave-to {
+    opacity: 0;
+    transform: translateX(30px);
+  }
 
-    .slide-fade-leave-active {
-        transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
-    }
+  /* Animación Fade In */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
 
-    .slide-fade-enter-from,
-    .slide-fade-leave-to {
-        transform: translateY(20px);
-        opacity: 0;
-    }
+  /* Scrollbar personalizado moderno */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent; 
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1; 
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8; 
+  }
 
-    /* Ocultar scrollbar pero permitir scroll (Clase utilitaria) */
-    .scrollbar-hide::-webkit-scrollbar {
-        display: none;
-    }
+  /* Utilidad para ocultar scrollbar visualmente pero mantener funcionalidad */
+  .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+  }
+  .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
 
-    .scrollbar-hide {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-    }
+  body { font-family: 'Inter', sans-serif; }
+  
+  /* Soporte para Notch de iPhone */
+  .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+  
+  /* Animaciones */
+  .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
+  .slide-up-enter-from, .slide-up-leave-to { transform: translateY(100%); opacity: 0; }
 
-    /* Estilo custom para inputs numéricos (quitar flechas) */
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
+  /* Ocultar scrollbar */
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  
+  /* Tap highlight para móvil */
+  * { -webkit-tap-highlight-color: transparent; }
+
 </style>
