@@ -230,6 +230,9 @@
                             state.rol = res.data.rol;
                             state.pinForm = '';
 
+                            // 🚀 [NUEVO] Guardar token de sesión en LocalStorage
+                            localStorage.setItem('pezca_token', res.data.token);
+
                             if (state.rol === 'vendedor' && state.vistaActual === 'inventario') {
                                 state.vistaActual = 'cotizador';
                             }
@@ -248,6 +251,9 @@
 
             const cerrarSesion = () => {
                 if (confirm('¿Cerrar sesión segura?')) {
+                    // 🚀 [NUEVO] Borrar token de sesión
+                    localStorage.removeItem('pezca_token');
+
                     state.usuarioActual = null;
                     state.rol = null;
                     state.productos = [];
@@ -537,7 +543,31 @@
                 checkScreenSize();
                 window.addEventListener('resize', checkScreenSize);
 
-                // La carga de datos ahora es lanzada por iniciarSesion()
+                // 🚀 [NUEVO] - Intentar Restaurar Sesión
+                const savedToken = localStorage.getItem('pezca_token');
+                if (savedToken) {
+                    state.cargandoLogin = true;
+                    google.script.run
+                        .withSuccessHandler(res => {
+                            state.cargandoLogin = false;
+                            if (res.status === 'success') {
+                                state.usuarioActual = res.data.nombre;
+                                state.rol = res.data.rol;
+                                if (state.rol === 'vendedor' && state.vistaActual === 'inventario') {
+                                    state.vistaActual = 'cotizador';
+                                }
+                                mostrarNotificacion('exito', 'Sesión restaurada');
+                                cargarDatos();
+                            } else {
+                                localStorage.removeItem('pezca_token');
+                            }
+                        })
+                        .withFailureHandler(err => {
+                            state.cargandoLogin = false;
+                            console.error("Error validando sesión silenciosa", err);
+                        })
+                        .validarSesion(savedToken);
+                }
             });
 
             return {

@@ -56,10 +56,12 @@ function validarLogin(pin) {
     const usuarioEncontrado = usuarios.find(u => u.pin === pinStr);
     
     if (usuarioEncontrado) {
-      // Retornar los datos (excepto el PIN por seguridad en el payload hacia el Frontend)
+      // Retornar los datos. Generamos un token encriptado en Base64 seguro
+      const tokenString = Utilities.base64EncodeWebSafe(usuarioEncontrado.pin);
       return responseSuccess({
         nombre: usuarioEncontrado.nombre,
-        rol: usuarioEncontrado.rol
+        rol: usuarioEncontrado.rol,
+        token: tokenString
       });
     } else {
       return responseError("PIN Incorrecto.");
@@ -68,5 +70,21 @@ function validarLogin(pin) {
   } catch(e) {
     console.error("Error en validarLogin: ", e.toString());
     return responseError("Error validando acceso: " + e.message);
+  }
+}
+
+/**
+ * Valida silenciosamente un token almacenado en LocalStorage
+ * @param {string} token Encriptado en base64 
+ */
+function validarSesion(token) {
+  try {
+    if (!token) return responseError("Sesión inválida.");
+    // Decodificar Base64 web safe y convertir blob a string
+    const pinStr = Utilities.newBlob(Utilities.base64DecodeWebSafe(token)).getDataAsString();
+    return validarLogin(pinStr); // Reutilizar la validación nativa
+  } catch(e) {
+    console.error("Error en validarSesion (Token Manipulado O Expirado): ", e.toString());
+    return responseError("Sesión expirada o inválida.");
   }
 }

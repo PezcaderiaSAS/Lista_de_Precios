@@ -50,6 +50,41 @@ function _getCategoriasMargenesData() {
 }
 
 /**
+ * Función interna para calcular los precios basándose en las reglas de negocio.
+ * @param {number} costoCompra 
+ * @param {number} buffer 
+ * @param {string} categoria 
+ * @returns {object} { costoReal, precioPOS, precioRest, precioMayor }
+ */
+function _calcularPreciosEnServidor(costoCompra, buffer, categoria) {
+  const cCompra = Number(costoCompra) || 0;
+  const cBuffer = Number(buffer) || 0;
+  const costoReal = cCompra * (1 + cBuffer);
+
+  const margenesData = _getCategoriasMargenesData();
+  let mPos = 0, mRest = 0, mMayor = 0;
+  
+  if (margenesData[categoria]) {
+    mPos = Number(margenesData[categoria].margen_pos) || 0;
+    mRest = Number(margenesData[categoria].margen_rest) || 0;
+    mMayor = Number(margenesData[categoria].margen_mayor) || 0;
+  }
+
+  const calcPrecio = (costo, margen) => {
+    if (margen >= 1) margen = margen / 100;
+    if (margen >= 1 || margen < 0) return costo;
+    return Math.round(costo / (1 - margen));
+  };
+
+  return {
+    costoReal: costoReal,
+    precioPOS: calcPrecio(costoReal, mPos),
+    precioRest: calcPrecio(costoReal, mRest),
+    precioMayor: calcPrecio(costoReal, mMayor)
+  };
+}
+
+/**
  * Endpoint Público que puede llamar el frontend para traer categorías con márgenes
  */
 function apiGetCategoriasMargenes() {
@@ -113,14 +148,13 @@ function getProductosSeguros() {
  * Guarda un NUEVO producto.
  */
 function guardarProductoBackend(dataProd) {
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName("BD_Productos");
-    
-    // Calcular Nuevo ID
-    const data = sheet.getDataRange().getValues();
+    return executeWithRetries(() => {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName("BD_Productos");
+      
+      // Calcular Nuevo ID
+      const data = sheet.getDataRange().getValues();
     let maxId = 0;
     for (let i = 1; i < data.length; i++) {
       let val = parseInt(data[i][0]);
@@ -128,12 +162,15 @@ function guardarProductoBackend(dataProd) {
     }
     const nuevoID = maxId + 1;
 
-    // Escribir celda por celda para NO interferir con ArrayFormulas en E, G, H, I
+    // Calculamos Precios en RAM antes de Guardar
+    const precios = _calcularPreciosEnServidor(dataProd.costo_compra, dataProd.buffer, dataProd.categoria);
+    
+    // Escribir celda por celda (O en bloque) para popular estáticamente TODOS los campos
     const targetRow = sheet.getLastRow() + 1;
     sheet.getRange(targetRow, 1).setValue(nuevoID); // A: ID
     sheet.getRange(targetRow, 2).setValue(dataProd.nombre.toUpperCase()); // B: Nombre
-    sheet.getRange(targetRow, 3, 1, 2).setValues([[dataProd.costo_compra || 0, dataProd.buffer || 0]]); // C: Compra, D: Buffer
-    sheet.getRange(targetRow, 6).setValue(dataProd.categoria); // F: Categoría
+    sheet.getRange(targetRow, 3, 1, 3).setValues([[dataProd.costo_compra || 0, dataProd.buffer || 0, precios.costoReal]]); // C: Compra, D: Buffer, E: Costo Real
+    sheet.getRange(targetRow, 6, 1, 4).setValues([[dataProd.categoria, precios.precioPOS, precios.precioRest, precios.precioMayor]]); // F: Cat, G: POS, H: Rest, I: Mayor
     
     SpreadsheetApp.flush();
 
@@ -141,11 +178,10 @@ function guardarProductoBackend(dataProd) {
     removeCachedLongString(CacheService.getScriptCache(), "PRODUCTOS_CACHE");
     
     return responseSuccess({ mensaje: "Producto creado", id: nuevoID });
+    });
   } catch(e) {
     console.error("Error en guardarProductoBackend:", e.toString());
     return responseError(e.toString());
-  } finally {
-    lock.releaseLock();
   }
 }
 
@@ -154,14 +190,13 @@ function guardarProductoBackend(dataProd) {
  * @param {object} p Objeto con los datos del producto a actualizar
  */
 function actualizarProductoBackend(p) {
-  const lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName("BD_Productos");
-    if (!sheet) throw new Error("No se encuentra BD_Productos");
+    return executeWithRetries(() => {
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      const sheet = ss.getSheetByName("BD_Productos");
+      if (!sheet) throw new Error("No se encuentra BD_Productos");
 
-    const data = sheet.getDataRange().getValues();
+      const data = sheet.getDataRange().getValues();
     let rowIndex = -1;
     
     // Buscar la fila por ID (columna 0)
@@ -176,19 +211,35 @@ function actualizarProductoBackend(p) {
       throw new Error("Producto no encontrado en la base de datos.");
     }
 
-    // Sobrescribir solo celdas específicas para NO destruir ARRAYFORMULAS en E, G, H, I.
+    // Combinar los datos enviados con los existentes en la celda original (Fallback)
+    const rowData = data[rowIndex];
+    const costoFinal = p.costo_compra !== undefined ? p.costo_compra : rowData[2];
+    const bufferFinal = p.buffer !== undefined ? p.buffer : rowData[3];
+    const catFinal = p.categoria !== undefined ? p.categoria : rowData[5];
+
+    // Cálculos de Precios
+    const precios = _calcularPreciosEnServidor(costoFinal, bufferFinal, catFinal);
+
     const realRow = rowIndex + 1; // rowIndex de getValues empieza en 0, fila en sheets en 1
     
     // B: Nombre
     if (p.nombre) {
       sheet.getRange(realRow, 2).setValue(p.nombre.toUpperCase());
     }
-    // C y D: Compra y Buffer
-    sheet.getRange(realRow, 3, 1, 2).setValues([[p.costo_compra || 0, p.buffer || 0]]);
-    // F: Categoria
-    if (p.categoria) {
-      sheet.getRange(realRow, 6).setValue(p.categoria);
-    }
+    
+    // Escribimos todo en bloque desde la Columna C(3) hasta I(9)
+    // C(3): Compra, D(4): Buffer, E(5): Costo Real, F(6): Categoria, G(7): POS, H(8): Rest, I(9): Mayor
+    const rowValues = [[
+      costoFinal || 0, 
+      bufferFinal || 0, 
+      precios.costoReal, 
+      catFinal || "General", 
+      precios.precioPOS, 
+      precios.precioRest, 
+      precios.precioMayor
+    ]];
+    
+    sheet.getRange(realRow, 3, 1, 7).setValues(rowValues);
     
     // Forzar la escritura física antes de devolver success al Front
     SpreadsheetApp.flush();
@@ -196,11 +247,10 @@ function actualizarProductoBackend(p) {
     // Invalidar caché
     removeCachedLongString(CacheService.getScriptCache(), "PRODUCTOS_CACHE");
 
-    return responseSuccess({ mensaje: "Producto actualizado" });
+      return responseSuccess({ mensaje: "Producto actualizado" });
+    });
   } catch(e) {
     console.error("Error en actualizarProductoBackend:", e.toString());
     return responseError(e.message || e.toString());
-  } finally {
-    lock.releaseLock();
   }
 }

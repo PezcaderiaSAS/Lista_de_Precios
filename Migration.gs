@@ -14,6 +14,7 @@ function onOpen() {
   ui.createMenu('La Pezcadería App')
     .addItem('Instalar Base de Datos (Primer Uso)', 'setupDatabase')
     .addItem('Reparar Fórmulas Destruidas (Inventario)', 'repararFormulasProductos')
+    .addItem('Migrar a Backend Pricing (Congelar Precios)', 'migrarTodaLaBaseDeDatosAValoresEstaticos')
     .addToUi();
 }
 
@@ -133,4 +134,42 @@ function repararFormulasProductos() {
   sheet.getRange("I2").setFormula('=ARRAYFORMULA(IF(ISBLANK(F2:F),"",MROUND(E2:E/(1-(XLOOKUP(F2:F,Config!B:B,Config!C:C,"No existe",0))),100)))');
 
   if(ui) ui.alert("¡Éxito!", "Las fórmulas de ARRAYFORMULA han sido restablecidas en las columnas E, G, H e I. Se borraron los valores estáticos que ingresaban en conflicto.", ui.ButtonSet.OK);
+}
+
+/**
+ * Fase 5 (Enterprise): Script Maestro para congelar todos los Precios Dinámicos 
+ * a texto estático, removiendo ARRAYFORMULAS para depender del Backend.
+ */
+function migrarTodaLaBaseDeDatosAValoresEstaticos() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("BD_Productos");
+  
+  if (!sheet) {
+    if(ui) ui.alert("No se encontró BD_Productos.");
+    return;
+  }
+  
+  if (ui) {
+    var response = ui.alert(
+      "Advertencia de Migración Crítica", 
+      "Esta acción CAPTURARÁ todos los precios que están calculando tus ARRAYFORMULAS actualmente y los PEGARÁ como VALORES ESTÁTICOS, destruyendo las fórmulas.\n\nA partir de este punto, Google Sheets dejará de calcular tus precios automáticamente y Apps Script asumirá el control (Backend Pricing).\n\n¿Estás seguro de que quieres dar el salto?", 
+      ui.ButtonSet.YES_NO
+    );
+    if (response !== ui.Button.YES) return;
+  }
+  
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  
+  if (lastRow > 1) {
+    // 1. Capturar todo el contenido de la hoja tal y como la lee el usuario actualmente (con matemáticas ya resueltas)
+    const range = sheet.getRange(2, 1, lastRow - 1, lastCol);
+    const existingValues = range.getValues();
+    
+    // 2. Destruir Fórmulas escribiéndolo todo encima como Valores
+    range.setValues(existingValues);
+  }
+  
+  if (ui) ui.alert("¡Migración Exitosa!", "Los catálogos están listos. Tus fórmulas han sido congeladas permanentemente a valores fijos. Apps Script se ha hecho cargo exitosamente del flujo matemático.", ui.ButtonSet.OK);
 }

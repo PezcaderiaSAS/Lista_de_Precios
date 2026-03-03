@@ -117,3 +117,46 @@ function removeCachedLongString(cache, key) {
   }
   cache.remove(key); // Remove legacy non-chunked key too
 }
+
+/**
+ * Ejecuta una función con bloqueos de escritura segura y reintentos automáticos
+ * para mitigar colisiones por concurrencia.
+ * 
+ * @param {Function} callback La función principal a ejecutar dentro del contexto del Lock.
+ * @param {number} maxRetries Intentos máximos antes de rendirse.
+ */
+function executeWithRetries(callback, maxRetries = 5) {
+  const lock = LockService.getScriptLock();
+  let attempts = 0;
+
+  while (attempts < maxRetries) {
+    try {
+      // Intentamos conseguir el bloqueo por 10 segundos
+      lock.waitLock(10000);
+      
+      // Ejecutar la acción delegada
+      const result = callback();
+      SpreadsheetApp.flush();
+      return result;
+      
+    } catch (e) {
+      const errorMsg = e.message ? e.message.toLowerCase() : String(e).toLowerCase();
+      // Si el error es de bloqueo o tiempo de espera
+      if (errorMsg.includes('lock') || errorMsg.includes('bloqueo') || errorMsg.includes('timeout')) {
+        attempts++;
+        if (attempts >= maxRetries) {
+          console.error("Fallo por concurrencia extrema después de " + maxRetries + " intentos.", e);
+          throw new Error("El sistema está muy ocupado actualmente. Por favor intenta de nuevo en unos segundos.");
+        }
+        // Exponential backoff: 2s, 4s, 8s... + jitter
+        Utilities.sleep((Math.pow(2, attempts) * 1000) + Math.round(Math.random() * 1000));
+      } else {
+        // Si no es error de bloqueo (es error de sintaxis o negocio), se arroja de una vez
+        throw e;
+      }
+    } finally {
+      // Siempre liberar el Lock al final del intento exitoso o fallido
+      lock.releaseLock();
+    }
+  }
+}
